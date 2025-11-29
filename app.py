@@ -17,7 +17,7 @@ st.set_page_config(
 # Load configuration (30 chillers)
 config = load_chiller_config()
 
-st.title("🏭 DATA CENTER – MANISH SINGH - BMS CHILLER DASHBOARD (Single Page, Simulated)")
+st.title("🏭 DATA CENTER – BMS CHILLER DASHBOARD (Single Page, Simulated)")
 
 # -------------------------------------------------------
 # SECTION 1 — 30 CHILLER GRID (3 × 10)
@@ -68,7 +68,7 @@ for row in range(3):
             unsafe_allow_html=True,
         )
 
-        # Toggle button (use st.rerun instead of experimental_rerun)
+        # Toggle button (using st.rerun)
         if col.button(f"Toggle CH-{ch_id}", key=f"toggle_{ch_id}"):
             ch["status"] = simulate_toggle_status(ch["status"])
             config["chillers"][ch_id - 1] = ch
@@ -112,16 +112,26 @@ st.header("🎤 Voice to Voice – BMS AI Agent")
 
 audio = st.audio_input("Speak a command (e.g., 'Turn on chiller 5', 'Set chiller 7 setpoint to 20.5')")
 if audio is not None:
-    st.info("Transcribing and processing your voice command...")
-    text = transcribe_audio(audio.read())
-    st.write(f"🗣 You said: **{text}**")
+    try:
+        st.info("Transcribing your voice command...")
+        # Read raw bytes from the UploadedFile
+        raw_bytes = audio.read()
 
-    reply, updated_config = run_agent(text, config)
-    config = updated_config
-    save_chiller_config(config)
+        # 1) Speech → Text
+        text = transcribe_audio(raw_bytes)
+        st.write(f"🗣 You said: **{text}**")
 
-    st.success(reply)
+        # 2) Use agent logic to interpret and update chillers
+        reply, updated_config = run_agent(text, config)
+        config = updated_config
+        save_chiller_config(config)
 
-    # Convert reply to speech
-    audio_out = tts_speak(reply)
-    st.audio(audio_out, format="audio/wav")
+        st.success(reply)
+
+        # 3) Text → Speech
+        st.info("Generating spoken response...")
+        audio_out = tts_speak(reply)
+        st.audio(audio_out, format="audio/wav")
+
+    except Exception as e:
+        st.error(f"Voice agent error: {e}")
