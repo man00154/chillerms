@@ -17,7 +17,7 @@ st.set_page_config(
 # Load configuration (30 chillers)
 config = load_chiller_config()
 
-st.title("🏭 DATA CENTER – BMS CHILLER DASHBOARD MANISH SINGH (Single Page, Simulated)")
+st.title("🏭 DATA CENTER – BMS CHILLER DASHBOARD - MANISH SINGH")
 
 # -------------------------------------------------------
 # SECTION 1 — 30 CHILLER GRID (3 × 10)
@@ -68,7 +68,7 @@ for row in range(3):
             unsafe_allow_html=True,
         )
 
-        # Toggle button (using st.rerun)
+        # Toggle button
         if col.button(f"Toggle CH-{ch_id}", key=f"toggle_{ch_id}"):
             ch["status"] = simulate_toggle_status(ch["status"])
             config["chillers"][ch_id - 1] = ch
@@ -109,29 +109,72 @@ for a in alarms:
 # -------------------------------------------------------
 st.markdown("---")
 st.header("🎤 Voice to Voice – BMS AI Agent")
+st.caption("Option 1: use the built-in mic recorder (preferred). "
+           "If it fails, use the file upload below.")
 
-audio = st.audio_input("Speak a command (e.g., 'Turn on chiller 5', 'Set chiller 7 setpoint to 20.5')")
+# ----- 4A. Built-in mic recorder (st.audio_input) -----
+audio = st.audio_input(
+    "Speak a command (e.g., 'Turn on chiller 5', 'Set chiller 7 setpoint to 20.5')",
+    format="audio/wav",
+)
+
 if audio is not None:
     try:
-        st.info("Transcribing your voice command...")
-        # Read raw bytes from the UploadedFile
         raw_bytes = audio.read()
+        if raw_bytes:
+            st.info("Transcribing your voice command from mic...")
+            text = transcribe_audio(raw_bytes)
 
-        # 1) Speech → Text
-        text = transcribe_audio(raw_bytes)
-        st.write(f"🗣 You said: **{text}**")
+            if text.strip():
+                st.write(f"🗣 You said (mic): **{text}**")
 
-        # 2) Use agent logic to interpret and update chillers
-        reply, updated_config = run_agent(text, config)
-        config = updated_config
-        save_chiller_config(config)
+                reply, updated_config = run_agent(text, config)
+                config = updated_config
+                save_chiller_config(config)
 
-        st.success(reply)
+                st.success(reply)
 
-        # 3) Text → Speech
-        st.info("Generating spoken response...")
-        audio_out = tts_speak(reply)
-        st.audio(audio_out, format="audio/wav")
-
+                st.info("Generating spoken response...")
+                audio_out = tts_speak(reply)
+                if audio_out:
+                    st.audio(audio_out, format="audio/wav")
+            else:
+                st.warning("Mic captured no speech. Try again or use file upload below.")
+        else:
+            st.warning("Mic widget did not return audio bytes. Try again or use file upload below.")
     except Exception as e:
-        st.error(f"Voice agent error: {e}")
+        st.error(f"Voice agent (mic) error: {e}")
+
+# ----- 4B. Fallback: upload audio file -----
+st.markdown("### 📁 Or upload an audio file")
+uploaded = st.file_uploader(
+    "Upload a short .wav / .mp3 command if the mic recorder does not work.",
+    type=["wav", "mp3", "m4a"],
+)
+
+if uploaded is not None:
+    try:
+        raw_bytes = uploaded.read()
+        if raw_bytes:
+            st.info("Transcribing your uploaded audio...")
+            text = transcribe_audio(raw_bytes)
+
+            if text.strip():
+                st.write(f"🗣 You said (file): **{text}**")
+
+                reply, updated_config = run_agent(text, config)
+                config = updated_config
+                save_chiller_config(config)
+
+                st.success(reply)
+
+                st.info("Generating spoken response...")
+                audio_out = tts_speak(reply)
+                if audio_out:
+                    st.audio(audio_out, format="audio/wav")
+            else:
+                st.warning("Uploaded file contained no recognizable speech.")
+        else:
+            st.warning("Uploaded file is empty.")
+    except Exception as e:
+        st.error(f"Voice agent (file) error: {e}")
