@@ -1,16 +1,11 @@
-import asyncio
 import streamlit as st
-from openai import AsyncOpenAI
+from openai import OpenAI
 
-# Load key safely from Streamlit secrets
-API_KEY = st.secrets["OPENAI_API_KEY"]
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-client = AsyncOpenAI(api_key=API_KEY)
-
-async def start_voice():
-    session = await client.realtime.sessions.create(
-        model="gpt-4o-realtime-preview",
-        voice="alloy",
-        modalities=["audio", "text", "tool"]
+def voice_chat(text):
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": text}]
     )
-    return session
+    return resp.choices[0].message["content"]
