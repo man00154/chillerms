@@ -1,14 +1,20 @@
-import json
 import os
+import json
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 
-def load_json(file):
-    path = os.path.join(BASE, "config", file)
-    with open(path) as f:
+# ----------------------------------------------------
+# Load JSON file (for chillers_config.json)
+# ----------------------------------------------------
+def load_chiller_config():
+    path = os.path.join(BASE, "chillers_config.json")
+    with open(path, "r") as f:
         return json.load(f)
 
-def save_json(file, content):
-    path = os.path.join(BASE, "config", file)
+# ----------------------------------------------------
+# Save updated JSON (ON/OFF or Setpoint update)
+# ----------------------------------------------------
+def save_chiller_config(data):
+    path = os.path.join(BASE, "chillers_config.json")
     with open(path, "w") as f:
-        json.dump(content, f, indent=4)
+        json.dump(data, f, indent=4)
