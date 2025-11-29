@@ -6,45 +6,68 @@ from simulator import simulate_on_off
 from api_client import get_chiller_parameters
 from hvac_manager import hvac_dashboard
 
-st.set_page_config(layout="wide", page_title="BMS Voice Agent")
+st.set_page_config(layout="wide", page_title="BMS Voice Agent – MANISH SINGH - Chiller Dashboard")
 
-st.title("🔊 BMS Chiller + HVAC Voice Agent (30 Chillers)")
+st.title("MUM-03-T5-L1  |  CHILLER_DASHBOARD  |  BMS Voice Agent")
 
-# Load config
+# ----------------------------
+# Load & cache configuration
+# ----------------------------
 cfg = load_json("chillers_config.json")
 
-# Sidebar Navigation
+# ----------------------------
+# Sidebar navigation
+# ----------------------------
 st.sidebar.title("Navigation")
-view = st.sidebar.selectbox("View", ["L1 Layout", "Cooling", "Chiller", "HVAC Dashboard"])
 
-chiller_id = st.sidebar.number_input("Select Chiller", 1, 30, 1)
+view = st.sidebar.selectbox(
+    "View",
+    ["L1 Layout", "Cooling Layout", "Chiller Dashboard", "Single Chiller", "HVAC Dashboard"],
+)
 
-# Show Layout Images
-show_layout(view)
+selected_chiller = st.sidebar.number_input("Select Chiller (for single view)", 1, 30, 1)
 
-# Chiller Dashboard
-if view == "Chiller":
-    st.subheader(f"Chiller {chiller_id} Parameters")
-    data = get_chiller_parameters(chiller_id)
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Supply Temp", data["supply_temp"])
-    col2.metric("Return Temp", data["return_temp"])
-    col3.metric("Power (kW)", data["power_kw"])
-    col4.metric("Flow (m3/hr)", data["flow_m3hr"])
+# ----------------------------
+# L1 Layout / Cooling image views
+# ----------------------------
+if view in ["L1 Layout", "Cooling Layout"]:
+    show_layout(view)
 
-    # ON/OFF Simulation
-    if st.button(f"Toggle CH{chiller_id} ON/OFF"):
-        cfg["chillers"][str(chiller_id)] = simulate_on_off(cfg["chillers"][str(chiller_id)])
-        save_json("chillers_config.json", cfg)
-        st.success(f"Chiller {chiller_id} is now {cfg['chillers'][str(chiller_id)]}")
+# ----------------------------
+# CHILLER DASHBOARD (grid like your screenshot)
+# ----------------------------
+if view == "Chiller Dashboard":
+    st.subheader("Chiller Grid – Live Parameters")
 
-# HVAC Dashboard
-if view == "HVAC Dashboard":
-    hvac_dashboard()
+    # two main columns: left = chiller grid, right = “gauges”
+    grid_col, gauge_col = st.columns([4, 1])
 
-# Voice Agent Input
-st.subheader("🎤 Voice Assistant")
-text = st.text_input("Say something to the BMS Agent...")
-if st.button("Send to Voice Agent"):
-    reply = run_voice_agent(text, cfg, chiller_id)
-    st.success(reply)
+    # ----- LEFT: chiller grid -----
+    with grid_col:
+        # We will show 20 chillers in 2 rows x 10 columns (like screenshot)
+        NUM_CHILLERS = 20
+        CHILLERS_PER_ROW = 10
+
+        for row_start in range(1, NUM_CHILLERS + 1, CHILLERS_PER_ROW):
+            cols = st.columns(CHILLERS_PER_ROW)
+            for offset in range(CHILLERS_PER_ROW):
+                ch_id = row_start + offset
+                if ch_id > NUM_CHILLERS:
+                    break
+
+                col = cols[offset]
+                data = get_chiller_parameters(ch_id)
+                status = cfg["chillers"][str(ch_id)]
+
+                # header – chiller name
+                col.markdown(
+                    f"<div style='background-color:#004b80;color:white;font-weight:bold;"
+                    f"text-align:center;padding:4px;'>T5-CHILLER-{ch_id:02d}</div>",
+                    unsafe_allow_html=True,
+                )
+
+                # on/off bar
+                bg = "#00aa00" if status == "ON" else "#aa0000"
+                col.markdown(
+                    f"<div style='background-color:{bg};color:white;text-align:center;"
+                    f"padding:4px;m
