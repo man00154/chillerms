@@ -1,32 +1,43 @@
-import io
-import base64
-import streamlit as st
-from openai import OpenAI
+# voice_agent.py  (REPLACE YOUR OLD FILE WITH THIS)
 
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+import io
+from openai import OpenAI
+import streamlit as st
+
+# Uses OPENAI_API_KEY from Streamlit secrets or env
+client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY", None))
 
 def transcribe_audio(audio_bytes: bytes) -> str:
     """
-    Convert uploaded/mic audio bytes to text using OpenAI Audio API.
+    Convert audio bytes (from st.audio_input) to text using
+    the OpenAI Audio Transcriptions endpoint.
     """
+    # Wrap raw bytes in a file-like object
     audio_file = io.BytesIO(audio_bytes)
-    audio_file.name = "input.wav"
+    audio_file.name = "input.wav"  # required for the SDK
 
-    transcript = client.audio.transcriptions.create(
+    # gpt-4o-mini-transcribe is an official STT model
+    # See docs: Audio & Speech → Transcriptions. 
+    result = client.audio.transcriptions.create(
         model="gpt-4o-mini-transcribe",
         file=audio_file,
     )
-    # 'text' attribute holds the transcription
-    return transcript.text
+    # `text` holds the transcription string
+    return result.text
+
 
 def tts_speak(text: str) -> bytes:
     """
-    Convert text to spoken audio bytes using OpenAI Audio TTS.
+    Convert text to spoken audio using OpenAI Text-to-Speech.
+    Returns raw bytes which you can pass to st.audio.
     """
+    # gpt-4o-mini-tts is a TTS model; voice 'alloy' is supported. 
     response = client.audio.speech.create(
         model="gpt-4o-mini-tts",
         voice="alloy",
         input=text,
     )
-    # For the Python SDK, use read() to get raw bytes
-    return response.read()
+
+    # In the new Python SDK, .read() returns the audio bytes directly
+    audio_bytes = response.read()
+    return audio_bytes
