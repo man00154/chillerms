@@ -6,15 +6,18 @@ from hvac_manager import hvac_dashboard
 from agent_brain import run_agent
 from voice_agent import transcribe_audio, tts_speak
 
+# -------------------------------------------------------
+# Page config
+# -------------------------------------------------------
 st.set_page_config(
     page_title="BMS AI Voice Agent – Chiller Dashboard",
     layout="wide"
 )
 
-# Load config
+# Load configuration (30 chillers)
 config = load_chiller_config()
 
-st.title("🏭 DATA CENTER – MANISH SINGH -  BMS CHILLER DASHBOARD (Single Page, Simulated)")
+st.title("🏭 DATA CENTER – MANISH SINGH - BMS CHILLER DASHBOARD (Single Page, Simulated)")
 
 # -------------------------------------------------------
 # SECTION 1 — 30 CHILLER GRID (3 × 10)
@@ -65,12 +68,12 @@ for row in range(3):
             unsafe_allow_html=True,
         )
 
-        # Toggle button
+        # Toggle button (use st.rerun instead of experimental_rerun)
         if col.button(f"Toggle CH-{ch_id}", key=f"toggle_{ch_id}"):
             ch["status"] = simulate_toggle_status(ch["status"])
             config["chillers"][ch_id - 1] = ch
             save_chiller_config(config)
-            st.experimental_rerun()
+            st.rerun()
 
         # Setpoint input
         new_sp = col.number_input(
