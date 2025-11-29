@@ -10,22 +10,22 @@ def hvac_dashboard():
         "pahu_temp": round(random.uniform(19, 23), 2),
         "pahu_rh": round(random.uniform(38, 52), 2),
         "tfa_temp": round(random.uniform(18, 22), 2),
-        "tfa_rh": round(random.uniform(35, 50), 2)
+        "tfa_rh": round(random.uniform(35, 50), 2),
     }
 
     c1, c2, c3 = st.columns(3)
 
     with c1:
         st.subheader("AHU")
-        st.metric("Temp (°C)", data["ahu_temp"])
+        st.metric("Supply Temp (°C)", data["ahu_temp"])
         st.metric("Humidity (%)", data["ahu_rh"])
 
     with c2:
         st.subheader("PAHU")
-        st.metric("Temp (°C)", data["pahu_temp"])
+        st.metric("Supply Temp (°C)", data["pahu_temp"])
         st.metric("Humidity (%)", data["pahu_rh"])
 
     with c3:
         st.subheader("TFA")
-        st.metric("Fresh Air (°C)", data["tfa_temp"])
+        st.metric("Fresh Air Temp (°C)", data["tfa_temp"])
         st.metric("Humidity (%)", data["tfa_rh"])
