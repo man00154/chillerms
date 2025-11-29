@@ -1,186 +1,124 @@
 import streamlit as st
+
 from utils import load_chiller_config, save_chiller_config
 from simulator import simulate_chiller_readings, simulate_toggle_status
-from layout_manager import show_layout
 from hvac_manager import hvac_dashboard
 from agent_brain import run_agent
-from image_click import get_chiller_from_click
 from voice_agent import transcribe_audio, tts_speak
 
-st.set_page_config(page_title="BMS Voice Agent – Manish Singh -  Chiller Dashboard", layout="wide")
+st.set_page_config(
+    page_title="BMS AI Voice Agent – Chiller Dashboard",
+    layout="wide"
+)
+
+# Load config
 config = load_chiller_config()
 
+st.title("🏭 DATA CENTER – MANISH SINGH -  BMS CHILLER DASHBOARD (Single Page, Simulated)")
 
-# ---------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------
-st.sidebar.title("Navigation")
-view = st.sidebar.selectbox(
-    "Select View",
-    ["L1 Layout", "Cooling Layout", "Chiller Dashboard", "Single Chiller", "HVAC Dashboard", "Voice-To-Voice"]
-)
-selected_chiller = st.sidebar.number_input("Selected Chiller", 1, 30, 1)
+# -------------------------------------------------------
+# SECTION 1 — 30 CHILLER GRID (3 × 10)
+# -------------------------------------------------------
+st.header("Chiller Plant – 30 Units (3 × 10 Grid)")
 
+NUM_CHILLERS = 30
+CHILLERS_PER_ROW = 10
 
-# ---------------------------------------------------------
-# L1 LAYOUT CLICKABLE (X,Y detection)
-# ---------------------------------------------------------
-if view == "L1 Layout":
-    st.subheader("Clickable L1 Layout (Select Chiller by clicking image below)")
+for row in range(3):
+    cols = st.columns(CHILLERS_PER_ROW)
+    for col_idx in range(CHILLERS_PER_ROW):
+        ch_id = row * CHILLERS_PER_ROW + col_idx + 1
+        ch = config["chillers"][ch_id - 1]
+        sim = simulate_chiller_readings(ch["setpoint"])
+        col = cols[col_idx]
 
-    click = st.image("l1 chiller layout.png", use_column_width=True)
+        # Blue header
+        col.markdown(
+            f"<div style='background:#004b80;color:white;text-align:center;"
+            f"padding:4px;font-size:12px;font-weight:bold;'>CH-{ch_id:02d}</div>",
+            unsafe_allow_html=True,
+        )
 
-    # Streamlit's click detector
-    if "clicked" not in st.session_state:
-        st.session_state.clicked = None
+        # Status bar
+        color = "#00aa00" if ch["status"] == "ON" else "#aa0000"
+        col.markdown(
+            f"<div style='background:{color};color:white;text-align:center;"
+            f"padding:4px;font-size:12px;'>STATUS: {ch['status']}</div>",
+            unsafe_allow_html=True,
+        )
 
-    event = st.session_state.get("clicked")
+        # Data panel
+        col.markdown(
+            f"""
+            <div style='background:#111;padding:6px;font-size:11px;color:#ddd;'>
+                <b>Setpoint:</b> {ch['setpoint']}°C<br>
+                <b>Supply:</b> {sim['supply_temp']}°C<br>
+                <b>Inlet:</b> {sim['inlet_temp']}°C<br>
+                <b>Outlet:</b> {sim['outlet_temp']}°C<br>
+                <b>Ambient:</b> {sim['ambient_temp']}°C<br>
+                <b>Comp-1:</b> {sim['comp1']}%<br>
+                <b>Comp-2:</b> {sim['comp2']}%<br>
+                <b>Power:</b> {sim['power_kw']} kW<br>
+                <b>Flow:</b> {sim['water_flow']} m³/hr<br>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    uploaded_event = st.experimental_get_query_params()
+        # Toggle button
+        if col.button(f"Toggle CH-{ch_id}", key=f"toggle_{ch_id}"):
+            ch["status"] = simulate_toggle_status(ch["status"])
+            config["chillers"][ch_id - 1] = ch
+            save_chiller_config(config)
+            st.experimental_rerun()
 
-    # Use JavaScript hack to capture X,Y
-    click_js = """
-        <script>
-        const img = document.querySelector('img[alt="l1 chiller layout.png"]');
-        img.addEventListener('click', (e) => {
-            const rect = e.target.getBoundingClientRect();
-            const x = e.clientX - rect.left; 
-            const y = e.clientY - rect.top;
-            const py = document.createElement('p');
-            py.id = "xycoord";
-            py.innerText = `${x},${y}`;
-            document.body.append(py);
-        });
-        </script>
-    """
-    st.markdown(click_js, unsafe_allow_html=True)
+        # Setpoint input
+        new_sp = col.number_input(
+            f"SP CH-{ch_id}", 16.0, 26.0, ch["setpoint"], 0.1,
+            key=f"sp_{ch_id}"
+        )
+        if new_sp != ch["setpoint"]:
+            ch["setpoint"] = new_sp
+            config["chillers"][ch_id - 1] = ch
+            save_chiller_config(config)
 
-    # User manually pastes coordinates into textbox
-    xy = st.text_input("Paste X,Y from click →")
+# -------------------------------------------------------
+# SECTION 2 — HVAC
+# -------------------------------------------------------
+st.markdown("---")
+hvac_dashboard()
 
-    if xy:
-        try:
-            x, y = xy.split(',')
-            x = float(x)
-            y = float(y)
-            detected = get_chiller_from_click(x, y)
-            if detected:
-                st.success(f"Selected Chiller → CH-{detected:02d}")
-                selected_chiller = detected
-        except:
-            st.error("Invalid XY format.")
+# -------------------------------------------------------
+# SECTION 3 — ALARMS (Simulated)
+# -------------------------------------------------------
+st.markdown("---")
+st.header("⚠️ Active Alarms (Simulated)")
+alarms = [
+    "T5-L1 Pump UPS Float-Charge Alarm",
+    "PAHU-A2 Unit Status OFF",
+    "DUCT-AFET-DET-011 Trouble",
+]
+for a in alarms:
+    st.markdown(f"- 🔶 **{a}**")
 
+# -------------------------------------------------------
+# SECTION 4 — VOICE TO VOICE AGENT
+# -------------------------------------------------------
+st.markdown("---")
+st.header("🎤 Voice to Voice – BMS AI Agent")
 
-# ---------------------------------------------------------
-# CHILLER DASHBOARD (30 CHILLERS, identical to screenshot)
-# ---------------------------------------------------------
-if view == "Chiller Dashboard":
-    st.title("CHILLER DASHBOARD – 30 Units (3×10 Grid)")
+audio = st.audio_input("Speak a command (e.g., 'Turn on chiller 5', 'Set chiller 7 setpoint to 20.5')")
+if audio is not None:
+    st.info("Transcribing and processing your voice command...")
+    text = transcribe_audio(audio.read())
+    st.write(f"🗣 You said: **{text}**")
 
-    NUM_CHILLERS = 30
-    PER_ROW = 10
+    reply, updated_config = run_agent(text, config)
+    config = updated_config
+    save_chiller_config(config)
 
-    for row in range(3):
-        cols = st.columns(PER_ROW)
-        for col_idx in range(PER_ROW):
+    st.success(reply)
 
-            ch_id = row * 10 + col_idx + 1
-            c = cols[col_idx]
-
-            ch = config["chillers"][ch_id - 1]
-            sim = simulate_chiller_readings(ch["setpoint"])
-
-            # Blue header
-            c.markdown(
-                f"<div style='background:#004b80;color:white;text-align:center;"
-                f"padding:4px;font-size:12px;font-weight:bold;'>CH-{ch_id:02d}</div>",
-                unsafe_allow_html=True,
-            )
-
-            # Status bar
-            color = "#00aa00" if ch["status"] == "ON" else "#aa0000"
-            c.markdown(
-                f"<div style='background:{color};color:white;text-align:center;"
-                f"padding:4px;font-size:12px;'>STATUS: {ch['status']}</div>",
-                unsafe_allow_html=True,
-            )
-
-            # Black data box
-            c.markdown(
-                f"""
-                <div style='background:#111;padding:6px;font-size:11px;line-height:1.4;color:#ddd;'>
-                    <b>Setpoint (°C):</b> {ch['setpoint']}<br>
-                    <b>Supply Temp:</b> {sim['supply_temp']}<br>
-                    <b>Inlet Temp:</b> {sim['inlet_temp']}<br>
-                    <b>Outlet Temp:</b> {sim['outlet_temp']}<br>
-                    <b>Ambient Temp:</b> {sim['ambient_temp']}<br>
-                    <b>Comp-1 Load:</b> {sim['comp1']}<br>
-                    <b>Comp-2 Load:</b> {sim['comp2']}<br>
-                    <b>Power (kW):</b> {sim['power_kw']}<br>
-                    <b>Water Flow:</b> {sim['water_flow']}<br>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            # Toggle ON/OFF
-            if c.button(f"Toggle CH-{ch_id}", key=f"tog{ch_id}"):
-                ch["status"] = simulate_toggle_status(ch["status"])
-                config["chillers"][ch_id - 1] = ch
-                save_chiller_config(config)
-                st.experimental_rerun()
-
-            # Setpoint field
-            new_sp = c.number_input(
-                f"SP CH-{ch_id}",
-                16.0, 26.0, ch["setpoint"], 0.1,
-                key=f"sp{ch_id}"
-            )
-            if new_sp != ch["setpoint"]:
-                ch["setpoint"] = new_sp
-                config["chillers"][ch_id - 1] = ch
-                save_chiller_config(config)
-
-
-# ---------------------------------------------------------
-# HVAC Dashboard
-# ---------------------------------------------------------
-if view == "HVAC Dashboard":
-    hvac_dashboard()
-
-
-# ---------------------------------------------------------
-# Single Chiller View
-# ---------------------------------------------------------
-if view == "Single Chiller":
-    st.header(f"CH-{selected_chiller:02d}")
-    ch = config["chillers"][selected_chiller - 1]
-    sim = simulate_chiller_readings(ch["setpoint"])
-
-    st.metric("Supply Temp", sim["supply_temp"])
-    st.metric("Inlet Temp", sim["inlet_temp"])
-    st.metric("Outlet Temp", sim["outlet_temp"])
-    st.metric("Power", sim["power_kw"])
-
-
-# ---------------------------------------------------------
-# FULL VOICE-TO-VOICE STREAMING
-# ---------------------------------------------------------
-if view == "Voice-To-Voice":
-    st.header("🎤 Voice Agent – Full Microphone Streaming")
-
-    audio = st.audio_input("Speak to BMS Agent →")
-    if audio:
-        st.info("Processing...")
-        text = transcribe_audio(audio.read())
-        st.write(f"📢 You said: **{text}**")
-
-        reply, updated = run_agent(text, config)
-        config = updated
-        save_chiller_config(config)
-
-        st.success(reply)
-
-        # TTS AUDIO OUTPUT
-        speech = tts_speak(reply)
-        st.audio(speech, format="audio/wav")
+    # Convert reply to speech
+    audio_out = tts_speak(reply)
+    st.audio(audio_out, format="audio/wav")
