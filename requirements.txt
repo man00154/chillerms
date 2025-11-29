@@ -1,0 +1,13 @@
+streamlit
+openai>=1.6.0
+numpy
+pandas
+requests
+pillow
+langchain
+langgraph
+python-dotenv
+matplotlib
+aiohttp
+sounddevice
+webrtcvad
