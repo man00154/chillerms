@@ -6,7 +6,6 @@ from utils import load_json, save_json
 from layout_manager import show_layout
 from chiller_api import get_chiller_live
 from hvac_api import get_ahu_live
-from simulator import simulate_chiller
 from data_simulator import simulate_chiller
 
 st.set_page_config(layout="wide", page_title="BMS Voice Agent")
