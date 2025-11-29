@@ -105,50 +105,20 @@ for a in alarms:
     st.markdown(f"- 🔶 **{a}**")
 
 # -------------------------------------------------------
-# SECTION 4 — VOICE TO VOICE AGENT
+# SECTION 4 — VOICE TO VOICE AGENT (via file upload)
 # -------------------------------------------------------
 st.markdown("---")
 st.header("🎤 Voice to Voice – BMS AI Agent")
-st.caption("Option 1: use the built-in mic recorder (preferred). "
-           "If it fails, use the file upload below.")
 
-# ----- 4A. Built-in mic recorder (st.audio_input) -----
-audio = st.audio_input(
-    "Speak a command (e.g., 'Turn on chiller 5', 'Set chiller 7 setpoint to 20.5')",
-    format="audio/wav",
+st.write(
+    "Record a short command on your phone or PC "
+    "(for example: **'Turn on chiller 5'**, "
+    "**'Set chiller 7 setpoint to 20.5'**), "
+    "save it as a small audio file, then upload it below."
 )
 
-if audio is not None:
-    try:
-        raw_bytes = audio.read()
-        if raw_bytes:
-            st.info("Transcribing your voice command from mic...")
-            text = transcribe_audio(raw_bytes)
-
-            if text.strip():
-                st.write(f"🗣 You said (mic): **{text}**")
-
-                reply, updated_config = run_agent(text, config)
-                config = updated_config
-                save_chiller_config(config)
-
-                st.success(reply)
-
-                st.info("Generating spoken response...")
-                audio_out = tts_speak(reply)
-                if audio_out:
-                    st.audio(audio_out, format="audio/wav")
-            else:
-                st.warning("Mic captured no speech. Try again or use file upload below.")
-        else:
-            st.warning("Mic widget did not return audio bytes. Try again or use file upload below.")
-    except Exception as e:
-        st.error(f"Voice agent (mic) error: {e}")
-
-# ----- 4B. Fallback: upload audio file -----
-st.markdown("### 📁 Or upload an audio file")
 uploaded = st.file_uploader(
-    "Upload a short .wav / .mp3 command if the mic recorder does not work.",
+    "Upload a short .wav / .mp3 / .m4a file with your voice command",
     type=["wav", "mp3", "m4a"],
 )
 
@@ -160,8 +130,9 @@ if uploaded is not None:
             text = transcribe_audio(raw_bytes)
 
             if text.strip():
-                st.write(f"🗣 You said (file): **{text}**")
+                st.write(f"🗣 You said: **{text}**")
 
+                # Run through agent (updates chiller config)
                 reply, updated_config = run_agent(text, config)
                 config = updated_config
                 save_chiller_config(config)
@@ -173,8 +144,8 @@ if uploaded is not None:
                 if audio_out:
                     st.audio(audio_out, format="audio/wav")
             else:
-                st.warning("Uploaded file contained no recognizable speech.")
+                st.warning("No recognizable speech detected in the file.")
         else:
             st.warning("Uploaded file is empty.")
     except Exception as e:
-        st.error(f"Voice agent (file) error: {e}")
+        st.error(f"Voice agent error: {e}")
