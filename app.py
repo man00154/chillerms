@@ -17,7 +17,7 @@ st.set_page_config(
 # Load configuration (30 chillers)
 config = load_chiller_config()
 
-st.title("🏭 DATA CENTER – BMS CHILLER DASHBOARD (Single Page, Simulated)")
+st.title("🏭 DATA CENTER – BMS CHILLER DASHBOARD MANISH SINGH (Single Page, Simulated)")
 
 # -------------------------------------------------------
 # SECTION 1 — 30 CHILLER GRID (3 × 10)
