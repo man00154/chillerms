@@ -1,22 +1,16 @@
 import random
 
-# ----------------------------------------------------
-# Generate simulated chiller parameters
-# ----------------------------------------------------
-def simulate_chiller_readings(setpoint: float):
-    # Basic simulated temps relative to setpoint
-    supply = round(setpoint + random.uniform(-0.8, 0.4), 2)
-    inlet = round(setpoint + random.uniform(2.0, 4.0), 2)
-    outlet = round(setpoint + random.uniform(-0.5, 1.0), 2)
-    ambient = round(random.uniform(28, 35), 2)
+def simulate_chiller_readings(setpoint):
+    supply = round(setpoint + random.uniform(-1.0, 0.4), 2)
+    inlet  = round(setpoint + random.uniform(2, 4), 2)
+    outlet = round(setpoint + random.uniform(-0.4, 1.0), 2)
+    ambient = round(random.uniform(28, 36), 2)
 
-    # Load
     comp1 = random.choice([0, 25, 50, 75, 100])
     comp2 = random.choice([0, 25, 50, 75, 100])
 
-    # Electrical & flow
     power = round(80 + (comp1 + comp2) * 1.8, 2)
-    flow = round(random.uniform(100, 230), 2)
+    water = round(random.uniform(120, 260), 2)
 
     return {
         "supply_temp": supply,
@@ -26,12 +20,8 @@ def simulate_chiller_readings(setpoint: float):
         "comp1": comp1,
         "comp2": comp2,
         "power_kw": power,
-        "water_flow": flow,
+        "water_flow": water,
     }
 
-
-# ----------------------------------------------------
-# Toggle ON/OFF status
-# ----------------------------------------------------
-def simulate_toggle_status(status: str):
-    return "OFF" if status == "ON" else "ON"
+def simulate_toggle_status(s):
+    return "OFF" if s == "ON" else "ON"
