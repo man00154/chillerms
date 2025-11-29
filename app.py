@@ -1,49 +1,50 @@
 import streamlit as st
-import asyncio
-from voice_realtime import start_voice
-from agent_graph import build_agent
 from utils import load_json, save_json
+from agent_brain import run_voice_agent
 from layout_manager import show_layout
-from chiller_api import get_chiller_live
-from hvac_api import get_ahu_live
-from data_simulator import simulate_chiller
+from simulator import simulate_on_off
+from api_client import get_chiller_parameters
+from hvac_manager import hvac_dashboard
 
 st.set_page_config(layout="wide", page_title="BMS Voice Agent")
 
-st.title("🎙️ BMS Voice Agent – Chiller + HVAC + TFA + PAHU")
+st.title("🔊 BMS Chiller + HVAC Voice Agent (30 Chillers)")
 
-agent = build_agent()
+# Load config
+cfg = load_json("chillers_config.json")
 
-layout = st.sidebar.selectbox("Dashboard", ["Cooling", "Chiller", "L1 Layout"])
-show_layout(layout)
+# Sidebar Navigation
+st.sidebar.title("Navigation")
+view = st.sidebar.selectbox("View", ["L1 Layout", "Cooling", "Chiller", "HVAC Dashboard"])
 
-st.sidebar.header("Chiller Control")
-ch = st.sidebar.selectbox("Select Chiller (1–30)", list(range(1,31)))
+chiller_id = st.sidebar.number_input("Select Chiller", 1, 30, 1)
 
-cfg = load_json("config/chillers_config.json")
+# Show Layout Images
+show_layout(view)
 
-if st.sidebar.button("Turn ON"):
-    cfg["chillers"][str(ch)]["status"] = "ON"
-    save_json("config/chillers_config.json", cfg)
+# Chiller Dashboard
+if view == "Chiller":
+    st.subheader(f"Chiller {chiller_id} Parameters")
+    data = get_chiller_parameters(chiller_id)
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Supply Temp", data["supply_temp"])
+    col2.metric("Return Temp", data["return_temp"])
+    col3.metric("Power (kW)", data["power_kw"])
+    col4.metric("Flow (m3/hr)", data["flow_m3hr"])
 
-if st.sidebar.button("Turn OFF"):
-    cfg["chillers"][str(ch)]["status"] = "OFF"
-    save_json("config/chillers_config.json", cfg)
+    # ON/OFF Simulation
+    if st.button(f"Toggle CH{chiller_id} ON/OFF"):
+        cfg["chillers"][str(chiller_id)] = simulate_on_off(cfg["chillers"][str(chiller_id)])
+        save_json("chillers_config.json", cfg)
+        st.success(f"Chiller {chiller_id} is now {cfg['chillers'][str(chiller_id)]}")
 
-st.sidebar.write("Status:", cfg["chillers"][str(ch)]["status"])
+# HVAC Dashboard
+if view == "HVAC Dashboard":
+    hvac_dashboard()
 
-st.header("Live Chiller Telemetry")
-live = get_chiller_live(ch)
-st.json(live)
-
-st.header("Simulation Data")
-sim = simulate_chiller(ch)
-st.json(sim)
-
-st.header("🎤 Speak to BMS Voice Agent")
-voice = st.file_uploader("Upload voice (wav/mp3)", type=["wav", "mp3"])
-
-if voice:
-    user_text = "Turn on chiller " + str(ch)  # placeholder for speech_recognition pipeline
-    out = agent({"user": user_text})
-    st.write("🗣️ Agent:", out["assistant"])
+# Voice Agent Input
+st.subheader("🎤 Voice Assistant")
+text = st.text_input("Say something to the BMS Agent...")
+if st.button("Send to Voice Agent"):
+    reply = run_voice_agent(text, cfg, chiller_id)
+    st.success(reply)
